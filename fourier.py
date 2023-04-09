@@ -1,47 +1,58 @@
-import cv2
 import numpy as np
+import cv2 
+from PIL import Image
 
-# Leitura da imagem
-img = cv2.imread('img/semaforo3.jpg', cv2.IMREAD_GRAYSCALE)
+# Carrega a imagem
+img = Image.open("img\semaforo1.jpg")
 
-# Aplicação do filtro de Gauss
-img_gaussian = cv2.GaussianBlur(img, (5, 5), 0)
+# Converte a imagem para escala de cinza
+img_gray = img.convert("L")
 
-# Cálculo do gradiente com o operador Sobel
-grad_x = cv2.Sobel(img_gaussian, cv2.CV_64F, 1, 0, ksize=3)
-grad_y = cv2.Sobel(img_gaussian, cv2.CV_64F, 0, 1, ksize=3)
+# Converte a imagem para um array NumPy
+img_array = np.array(img_gray)
 
-# Cálculo da magnitude e direção do gradiente
-mag, ang = cv2.cartToPolar(grad_x, grad_y, angleInDegrees=True)
+# Aplica a FFT na imagem
+img_fft = np.fft.fft2(img_array)
 
-# Aplicação do limiar OTSU na magnitude do gradiente
-mag_8bit = cv2.convertScaleAbs(mag)
-_, thresh = cv2.threshold(mag_8bit, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+# Aplica o shift nas frequências para o centro da imagem
+img_fft_shift = np.fft.fftshift(img_fft)
 
-# Cálculo da transformada de Fourier
-dft = cv2.dft(np.float32(img_gaussian), flags=cv2.DFT_COMPLEX_OUTPUT)
-dft_shift = np.fft.fftshift(dft)
+# Cria um filtro passa-baixas
+filtro = np.zeros(img_array.shape)
+altura, largura = img_array.shape
+centro_altura, centro_largura = altura // 2, largura // 2
+raio = 50
+for i in range(altura):
+    for j in range(largura):
+        if ((i - centro_altura)**2 + (j - centro_largura)**2) < raio**2:
+            filtro[i, j] = 1
 
-# Filtro passa-alta com a transformada de Fourier
-rows, cols = img.shape
-crow, ccol = rows//2, cols//2
-mask = np.ones((rows, cols, 2), np.uint8)
-r = 50
-center = [crow, ccol]
-x, y = np.ogrid[:rows, :cols]
-mask_area = (x - center[0])**2 + (y - center[1])**2 <= r*r
-mask[mask_area] = 0
+# Aplica o filtro na imagem
+img_fft_filt = img_fft_shift * filtro
 
-# Aplicação do filtro passa-alta na transformada de Fourier
-fshift = dft_shift * mask
-f_ishift = np.fft.ifftshift(fshift)
-img_back = cv2.idft(f_ishift)
-img_back = cv2.magnitude(img_back[:, :, 0], img_back[:, :, 1])
+# Aplica o shift inverso nas frequências
+img_fft_filt_shift = np.fft.ifftshift(img_fft_filt)
 
-# Exibição das imagens
-cv2.imshow('Original', img)
-cv2.imshow('Gradiente', mag_8bit)
-cv2.imshow('Limiar', thresh)
-cv2.imshow('Passa-alta', img_back)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+# Aplica a inversa da FFT na imagem filtrada
+img_filtrada = np.abs(np.fft.ifft2(img_fft_filt_shift))
+
+# Salva a imagem filtrada
+Image.fromarray(img_filtrada.astype(np.uint8)).save("img/semafaro1_fft.jpg")
+# Aplica o operador Sobel
+sobelx = cv2.Sobel(img_filtrada, cv2.CV_64F, 1, 0, ksize=3)
+sobely = cv2.Sobel(img_filtrada, cv2.CV_64F, 0, 1, ksize=3)
+img_sobel = np.sqrt(sobelx**2 + sobely**2)
+
+# Normaliza a imagem
+img_sobel = cv2.normalize(img_sobel, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8U)
+
+# Aplica a limiarização
+img_filtrada = cv2.convertScaleAbs(img_filtrada)
+_, img_limiarizada = cv2.threshold(img_filtrada, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+# Salva a imagem limiarizada
+cv2.imwrite("img/semafaro1_limiarizada.jpg", img_limiarizada)
+
+
+# Salva a imagem com as bordas detectadas
+cv2.imwrite("img/imagem_bordas_sobel.png", img_sobel)
