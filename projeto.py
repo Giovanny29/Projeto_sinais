@@ -1,58 +1,49 @@
 import cv2
 import numpy as np
 
-# Definir a nova largura e altura da imagem
-new_width = 1600
-new_height = 800
+# carrega a imagem
+img = cv2.imread('img\semaforo1.jpg')
+img_resized = cv2.resize(img, (266, 266))
 
-# Carregar a imagem, redimensionar e converter para escala de cinza
-img = cv2.imread('img/semaforo1.jpg')
-rsd_img = cv2.resize(img, (new_width, new_height))
-gray = cv2.cvtColor(rsd_img, cv2.COLOR_BGR2GRAY)
+# aplica a transformada de Fourier à imagem
+f = np.fft.fft2(img)
+fshift = np.fft.fftshift(f)
 
-# Aplicar filtro passa alta
-kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
-gray_filtered = cv2.filter2D(gray, -1, kernel)
+# exibe a imagem após a transformada de Fourier
+magnitude_spectrum = 20 * np.log(np.abs(fshift))
 
-# Aplicar a Transformada de Fourier
-img_fft = np.fft.fft2(gray_filtered)
 
-# Centralizar as frequências baixas
-img_fft_shifted = np.fft.fftshift(img_fft)
+# define o filtro passa-alta para realçar a região de alta frequência da imagem
+rows, cols, channels = img.shape
+crow, ccol = int(rows / 2), int(cols / 2)
+fshift[crow-30:crow+30, ccol-30:ccol+30] = 0
 
-# Aplicar um filtro passa-baixa no domínio da frequência para remover o ruído
-rows, cols = gray.shape
-crow, ccol = rows // 2, cols // 2
-mask = np.zeros((rows, cols), np.uint8)
-r = 50
-cv2.circle(mask, (ccol, crow), r, 255, -1)
-img_fft_shifted_filtered = img_fft_shifted * mask
+# aplica a transformada inversa de Fourier à imagem filtrada
+ishift = np.fft.ifftshift(fshift)
+iimg = np.fft.ifft2(ishift)
+iimg = np.abs(iimg)
 
-# Centralizar novamente as frequências baixas
-img_fft_filtered = np.fft.ifftshift(img_fft_shifted_filtered)
 
-# Aplicar a Transformada Inversa de Fourier
-img_final = np.abs(np.fft.ifft2(img_fft_filtered))
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-# Normalizar a imagem resultante para o intervalo [0, 255]
-img_final = cv2.normalize(img_final, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8U)
+# aplica a detecção de bordas usando o filtro de Laplacian
+laplacian = cv2.Laplacian(gray, cv2.CV_8U)
 
-# Aplicar filtro de Sobel na direção x e y
-sobelx = cv2.Sobel(img_final , cv2.CV_64F, 1, 0, ksize=3)
-sobely = cv2.Sobel(img_final , cv2.CV_64F, 0, 1, ksize=3)
+# aplica a detecção de contornos para encontrar os semáforos na imagem
+contours, hierarchy = cv2.findContours(laplacian, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+# aplica a detecção de contornos para encontrar os semáforos na imagem
+contours, hierarchy = cv2.findContours(laplacian, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+semaphore_contours = []
+for contour in contours:
+    # obtém o retângulo mínimo que contém o contorno
+    x, y, w, h = cv2.boundingRect(contour)
+    area = cv2.contourArea(contour)
+    if area > 300 :  # define os limites de área dos semáforos
+        cv2.rectangle(img, (x, y), (x + w, y + h), (0, 0, 255), 2)
+        semaphore_contours.append(contour)
 
-# Combinar os resultados
-sobel = np.sqrt(sobelx**2 + sobely**2)
-
-# Converter para escala de cinza
-sobel = np.uint8(sobel)
-    
-# Aplicar o detector de bordas Canny
-edges = cv2.Canny(sobel, 100, 200)
-
-# Exibir a imagem original e a imagem filtrada
-cv2.imshow('Original', img)
-cv2.imshow('Final', img_final)
-cv2.imshow('Sobel', sobel)
-cv2.imshow('Edges', edges)
-cv2.waitKey(0)
+# exibe a imagem com os retângulos detectados
+while True:   
+  cv2.imshow('IMG',img)
+  cv2.imshow('Imagem após filtro de laplace',laplacian )
+  cv2.waitKey(1)
