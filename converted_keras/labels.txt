@@ -1,0 +1,3 @@
+0 semaforo
+1 nuvem
+2 arvore
