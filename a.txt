@@ -1,0 +1,25 @@
+import cv2
+import numpy as np
+
+# carrega a imagem do semáforo
+img = cv2.imread('img\semaforo6.jpg')
+
+# converte a imagem para o espaço de cores HSV
+hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+# define a faixa de valores de cor do semáforo
+lower_green = np.array([50, 50, 50]) # valores mínimos de H, S e V
+upper_green = np.array([70, 255, 255]) # valores máximos de H, S e V
+
+# cria uma máscara binária com os pixels que estão dentro da faixa de cor do semáforo
+mask = cv2.inRange(hsv, lower_green, upper_green)
+
+# aplica a máscara na imagem original para destacar apenas os pixels que pertencem ao semáforo
+result = cv2.bitwise_and(img, img, mask=mask)
+
+# exibe a imagem resultante
+cv2.imshow('Imagem do semáforo', img)
+cv2.imshow('Máscara binária', mask)
+cv2.imshow('Resultado', result)
+cv2.waitKey(0)
+cv2.destroyAllWindows()

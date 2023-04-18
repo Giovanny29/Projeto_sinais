@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 # carrega a imagem
-img = cv2.imread('img\semaforo1.jpg')
+img = cv2.imread('img\semaforo4.jpg')
 img_resized = cv2.resize(img, (266, 266))
 
 # aplica a transformada de Fourier à imagem
@@ -10,7 +10,7 @@ f = np.fft.fft2(img)
 fshift = np.fft.fftshift(f)
 
 # exibe a imagem após a transformada de Fourier
-magnitude_spectrum = 20 * np.log(np.abs(fshift))
+#magnitude_spectrum = 20 * np.log(np.abs(fshift))
 
 
 # define o filtro passa-alta para realçar a região de alta frequência da imagem
@@ -38,7 +38,7 @@ for contour in contours:
     # obtém o retângulo mínimo que contém o contorno
     x, y, w, h = cv2.boundingRect(contour)
     area = cv2.contourArea(contour)
-    if area > 300 :  # define os limites de área dos semáforos
+    if area > 523 :  # define os limites de área dos semáforos
         cv2.rectangle(img, (x, y), (x + w, y + h), (0, 0, 255), 2)
         semaphore_contours.append(contour)
 
